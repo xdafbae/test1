@@ -1,10 +1,7 @@
 <?php
 
 /**
- * Vercel PHP entry point for Laravel.
- *
- * Vercel uses a read-only filesystem — writable directories are
- * redirected to /tmp so Laravel can write sessions, cache, and views.
+ * Vercel PHP entry point for Laravel (with debug output).
  */
 
 define('LARAVEL_START', microtime(true));
@@ -30,18 +27,39 @@ if ($uri !== '/' && file_exists($staticFile) && !is_dir($staticFile)) {
     return false;
 }
 
-// ── 3. Boot Laravel ───────────────────────────────────────────────────────
-require_once __DIR__ . '/../vendor/autoload.php';
+// ── 3. Boot Laravel with full error output ────────────────────────────────
+try {
+    if (!file_exists(__DIR__ . '/../vendor/autoload.php')) {
+        throw new RuntimeException('vendor/autoload.php not found. Run composer install.');
+    }
 
-$app = require_once __DIR__ . '/../bootstrap/app.php';
+    require_once __DIR__ . '/../vendor/autoload.php';
 
-// Redirect storage to /tmp (must be before kernel handles request)
-$app->useStoragePath($tmpBase . '/storage');
+    $app = require_once __DIR__ . '/../bootstrap/app.php';
+    $app->useStoragePath($tmpBase . '/storage');
 
-$kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
+    $kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
+    $response = $kernel->handle(
+        $request = Illuminate\Http\Request::capture()
+    )->send();
+    $kernel->terminate($request, $response);
 
-$response = $kernel->handle(
-    $request = Illuminate\Http\Request::capture()
-)->send();
-
-$kernel->terminate($request, $response);
+} catch (\Throwable $e) {
+    http_response_code(500);
+    header('Content-Type: application/json');
+    echo json_encode([
+        'error'   => $e->getMessage(),
+        'class'   => get_class($e),
+        'file'    => str_replace(dirname(__DIR__), '', $e->getFile()),
+        'line'    => $e->getLine(),
+        'trace'   => array_slice(
+            array_map(fn($l) => str_replace(dirname(__DIR__), '', $l),
+                explode("\n", $e->getTraceAsString())
+            ), 0, 8
+        ),
+        'php'     => PHP_VERSION,
+        'tmp_ok'  => is_writable(sys_get_temp_dir()),
+        'vendor'  => file_exists(__DIR__ . '/../vendor/autoload.php'),
+        'env_key' => !empty($_ENV['APP_KEY']) ? 'SET ('.strlen($_ENV['APP_KEY']).' chars)' : 'NOT SET',
+    ], JSON_PRETTY_PRINT);
+}
