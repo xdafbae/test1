@@ -356,8 +356,8 @@
 @push('scripts')
 <script>
 const CSRF = document.querySelector('meta[name="csrf-token"]').content;
-const SEARCH_URL = '{{ route("movies.search") }}';
-const FAV_STORE  = '{{ route("favorites.store") }}';
+const SEARCH_URL = '/movies/search';
+const FAV_STORE  = '/favorites';
 const FAV_BASE   = '/favorites/';
 const lang = {
     addFav:    '{{ __("app.add_favorite") }}',

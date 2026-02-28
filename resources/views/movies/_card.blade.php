@@ -9,7 +9,7 @@
 @endphp
 
 <div class="movie-card">
-    <a href="{{ route('movies.show', $imdbId) }}">
+    <a href="/movies/{{ $imdbId }}">
         <div class="poster-wrap">
             @if($poster)
                 <img
