@@ -18,6 +18,11 @@ putenv('VIEW_COMPILED_PATH=' . $viewsDir);
 $_ENV['VIEW_COMPILED_PATH']    = $viewsDir;
 $_SERVER['VIEW_COMPILED_PATH'] = $viewsDir;
 
+// FORCE DEBUG MODE TO SEE THE REAL ERROR
+putenv('APP_DEBUG=true');
+$_ENV['APP_DEBUG'] = true;
+$_SERVER['APP_DEBUG'] = true;
+
 // ── 2. Serve static files from /public directly ──────────────────────────
 $uri = urldecode(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
 $staticFile = __DIR__ . '/../public' . $uri;
