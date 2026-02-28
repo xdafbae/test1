@@ -1,5 +1,6 @@
 {
     "version": 2,
+    "framework": null,
     "functions": {
         "api/index.php": {
             "runtime": "vercel-php@0.7.2"
@@ -15,6 +16,6 @@
             "dest": "/api/index.php"
         }
     ],
-    "buildCommand": "composer install --no-dev --optimize-autoloader && php artisan config:cache && php artisan route:cache && php artisan view:cache",
+    "buildCommand": "composer install --no-dev --optimize-autoloader",
     "installCommand": "composer install --no-dev --optimize-autoloader"
 }
