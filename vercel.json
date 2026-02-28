@@ -1,13 +1,20 @@
 {
     "version": 2,
     "framework": null,
-    "outputDirectory": "public",
     "functions": {
         "api/index.php": {
             "runtime": "vercel-php@0.7.2"
         }
     },
     "routes": [
+        {
+            "src": "/favicon.ico",
+            "dest": "/public/favicon.ico"
+        },
+        {
+            "src": "/robots.txt",
+            "dest": "/public/robots.txt"
+        },
         {
             "src": "/(.*)",
             "dest": "/api/index.php"
