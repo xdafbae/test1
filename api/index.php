@@ -1,24 +1,26 @@
 <?php
 
 /**
- * Vercel PHP entry point for Laravel (with debug output).
+ * Vercel PHP entry point for Laravel.
+ *
+ * Uses putenv() to redirect writable paths to /tmp BEFORE Laravel boots,
+ * avoiding useStoragePath() which breaks ViewServiceProvider binding.
  */
 
 define('LARAVEL_START', microtime(true));
 
-// ── 1. Create writable dirs in /tmp ──────────────────────────────────────
+// ── 1. Set up /tmp writable directories for Vercel read-only filesystem ──
 $tmpBase = sys_get_temp_dir() . '/laravel';
-foreach ([
-    $tmpBase . '/storage/framework/sessions',
-    $tmpBase . '/storage/framework/cache/data',
-    $tmpBase . '/storage/framework/views',
-    $tmpBase . '/storage/logs',
-    $tmpBase . '/bootstrap/cache',
-] as $dir) {
-    if (!is_dir($dir)) {
-        mkdir($dir, 0775, true);
-    }
+
+$viewsDir = $tmpBase . '/views';
+if (!is_dir($viewsDir)) {
+    mkdir($viewsDir, 0775, true);
 }
+
+// Tell Laravel where to compile Blade views (via config/view.php)
+putenv('VIEW_COMPILED_PATH=' . $viewsDir);
+$_ENV['VIEW_COMPILED_PATH']    = $viewsDir;
+$_SERVER['VIEW_COMPILED_PATH'] = $viewsDir;
 
 // ── 2. Serve static files from /public directly ──────────────────────────
 $uri = urldecode(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
@@ -27,7 +29,7 @@ if ($uri !== '/' && file_exists($staticFile) && !is_dir($staticFile)) {
     return false;
 }
 
-// ── 3. Boot Laravel with full error output ────────────────────────────────
+// ── 3. Boot Laravel ───────────────────────────────────────────────────────
 try {
     if (!file_exists(__DIR__ . '/../vendor/autoload.php')) {
         throw new RuntimeException('vendor/autoload.php not found. Run composer install.');
@@ -36,7 +38,6 @@ try {
     require_once __DIR__ . '/../vendor/autoload.php';
 
     $app = require_once __DIR__ . '/../bootstrap/app.php';
-    $app->useStoragePath($tmpBase . '/storage');
 
     $kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
     $response = $kernel->handle(
@@ -48,18 +49,17 @@ try {
     http_response_code(500);
     header('Content-Type: application/json');
     echo json_encode([
-        'error'   => $e->getMessage(),
-        'class'   => get_class($e),
-        'file'    => str_replace(dirname(__DIR__), '', $e->getFile()),
-        'line'    => $e->getLine(),
-        'trace'   => array_slice(
+        'error'    => $e->getMessage(),
+        'class'    => get_class($e),
+        'file'     => str_replace(dirname(__DIR__), '', $e->getFile()),
+        'line'     => $e->getLine(),
+        'trace'    => array_slice(
             array_map(fn($l) => str_replace(dirname(__DIR__), '', $l),
                 explode("\n", $e->getTraceAsString())
             ), 0, 8
         ),
-        'php'     => PHP_VERSION,
-        'tmp_ok'  => is_writable(sys_get_temp_dir()),
-        'vendor'  => file_exists(__DIR__ . '/../vendor/autoload.php'),
-        'env_key' => !empty($_ENV['APP_KEY']) ? 'SET ('.strlen($_ENV['APP_KEY']).' chars)' : 'NOT SET',
+        'php'      => PHP_VERSION,
+        'env_key'  => !empty($_ENV['APP_KEY']) ? 'SET ('.strlen($_ENV['APP_KEY']).' chars)' : 'NOT SET',
+        'views_ok' => is_writable($viewsDir),
     ], JSON_PRETTY_PRINT);
 }
